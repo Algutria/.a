@@ -1,0 +1,200 @@
+PARSER_BEGIN(Analizador)
+
+public class Analizador
+{
+	public static void main(String[] args) throws ParseException 
+	{
+		try
+		{
+			Analizador compilador = new Analizador(System.in);
+			compilador.Analizar();
+			System.out.println("Compilador: Sentencia(s) aceptada(s).");
+			
+		}
+		catch(ParseException e)
+		{
+			System.out.println(e.getMessage());
+			System.out.println("Compilador: Sentencia(s) no aceptada(s).");
+		}
+	}
+}
+PARSER_END(Analizador)
+
+SKIP:
+{
+	" " 
+	| "\t" 
+	| "\n" 
+	| "\r"
+}
+
+// Alfabetos
+TOKEN:
+{
+	<Letra: ["a"-"z", "A"-"Z"] | ("ñ"| "Ñ")>
+	|<Dig: ["0"-"9"]>
+	|<Simbolos: ("!"|"@"|"$"|"%"|"&"|"?"|"¿"|"¡"|":"|"#"|"{"|"}"|"["|"]"|"<"|">")>
+}
+
+// Palabras reservadas en mayusculas y minusculas para darle flexibilidad al analizador
+TOKEN:
+{
+	<Input: (("I""N""P""U""T")|("i""n""p""u""t"))>
+	|<Disp: (("D""I""S""P""(")|("d""i""s""p""("))>
+	|<PalabrasRA: ("I""N""P""U""T"|"i""n""p""u""t"|"D""I""S""P"|"d""i""s""p")(<Letra>|<Dig>|"_")>
+	|<PalabrasR: ("I""N""P""U""T"|"i""n""p""u""t"|"D""I""S""P"|"d""i""s""p")>
+}
+
+// Variable —> letra [‘_’] Variable | [‘_’] dig [‘_’] Variable | λ
+// Constante —> dig Constante | ‘,’ dig Constante | λ
+
+// Validacion de la estructura 'input' --> Var=INPUT('          ');
+
+// VarInput —> Variable ‘=‘ Input ‘(‘’ Mensaje ’’);’
+// Input —> ‘input’ | ‘INPUT’
+// Mensaje —> letra Mensaje | λ
+void VarInput():
+{}
+{
+	Variable()"="<Input>("('"Mensaje()"');")
+}
+
+void Mensaje():
+{}
+{
+	<Dig>[Mensaje()]
+	|<Letra>[Mensaje()]
+	|<Simbolos>[Mensaje()]
+	|("+"|"-"|"/"|"*"|"("|")"|";"|"."|","|"=")[Mensaje()]
+}
+
+// Validacion de sentencias:
+
+// Sentencia —> Variable ’=’ P ’;’ Sentencia | λ
+// P —> T Pprima
+// Pprima —> ‘+’ T Pprima | ‘-’ T Pprima | λ
+// T —> F Tprima
+// Tprima —> ‘*’ F Tprima | ‘/’ F Tprima | λ
+// F —> Constante | Variable | ‘(’ P ‘)’
+void Sentencia():
+{}
+{
+	Variable()"="P()";"[Sentencia()]
+}
+
+void P():
+{}
+{
+	T()Pprima()
+}
+
+void Pprima():
+{}
+{
+	[
+		"+"T()Pprima()
+		|"-"T()Pprima()
+	]
+}
+
+void T():
+{}
+{
+	F()Tprima()
+}
+
+void Tprima():
+{}
+{
+	[
+		"*"F()Tprima()
+		|"/"F()Tprima()
+	]
+}
+
+void F():
+{}
+{
+	(
+		Constante()
+		|Variable()
+		|"("P()")"
+	)
+}
+
+void Variable():
+{}
+{
+	<Letra>[Var1()]
+	|<PalabrasRA>[Var1()]
+}
+
+void Var1():
+{}
+{
+	<Letra>["_"][Var1()]
+	|["_"]<Dig>["_"][Var1()]
+}
+
+void Constante():
+{}
+{
+	<Dig>[Constante()]
+	|(","|".")<Dig>[Constante()]
+}
+
+// Validacion de la estructura 'disp' --> DISP(Var); ó DISP(' ',Var,' ',Var....);
+
+// VarDisp —> Disp M X ‘);’
+// Disp —> ‘disp’ | ‘DISP’
+// M —> Men Var
+// Men —> ‘’’ Mensaje ‘’,’ | λ
+// Var —> Variable
+// X —> ‘,’ M X | λ
+void VarDisp():
+{}
+{
+	<Disp>M()X()");"
+}
+
+void M():
+{}
+{
+	Men()Var()
+}
+
+void Men():
+{}
+{
+	["'"Mensaje()"',"]
+}
+
+void Var():
+{}
+{
+	Variable()
+}
+
+void X():
+{}
+{
+	[","M()X()]
+}
+
+// Creamos metodo validar para llamar a Analizar()
+int Validar():
+{}
+{
+	Analizar() <EOF>{ return 1; }
+	| <EOF>{ return -1; }
+}
+
+// El metodo Analizar() concatena los 3 metodos ó las tres producciones principales
+// Analizar —> VarInput Sentencia VarDisp
+void Analizar():
+{}
+{
+	VarInput()Sentencia()VarDisp()<EOF>
+}
+
+
